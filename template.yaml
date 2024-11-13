@@ -1,0 +1,60 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Enhanced CloudFormation template to create an S3 bucket with versioning and optional lifecycle policy.
+
+Parameters:
+  BucketName:
+    Description: "The name of the S3 bucket"
+    Type: String
+    MinLength: 3
+    MaxLength: 63
+    AllowedPattern: "^[a-z0-9-]+$"
+    ConstraintDescription: "Bucket name can only contain lowercase letters, numbers, and hyphens."
+
+  VersioningEnabled:
+    Description: "Enable or disable versioning for the bucket"
+    Type: String
+    Default: "Enabled"
+    AllowedValues:
+      - Enabled
+      - Disabled
+    ConstraintDescription: "Must specify either Enabled or Disabled."
+
+  LifecyclePolicyEnabled:
+    Description: "Enable or disable a lifecycle policy to delete objects after 30 days"
+    Type: String
+    Default: "Disabled"
+    AllowedValues:
+      - Enabled
+      - Disabled
+    ConstraintDescription: "Must specify either Enabled or Disabled."
+
+Conditions:
+  EnableVersioning: !Equals [!Ref VersioningEnabled, "Enabled"]
+  EnableLifecyclePolicy: !Equals [!Ref LifecyclePolicyEnabled, "Enabled"]
+
+Resources:
+  S3Bucket:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketName: !Ref BucketName
+      VersioningConfiguration:
+        Status: !If [EnableVersioning, "Enabled", "Suspended"]
+      LifecycleConfiguration:
+        !If 
+          - EnableLifecyclePolicy
+          - Rules:
+              - Id: "DeleteOldObjects"
+                Status: "Enabled"
+                ExpirationInDays: 30
+          - !Ref "AWS::NoValue"
+      Tags:
+        - Key: "Environment"
+          Value: "Production"
+
+Outputs:
+  BucketName:
+    Description: "The name of the created S3 bucket"
+    Value: !Ref S3Bucket
+  BucketArn:
+    Description: "The ARN of the created S3 bucket"
+    Value: !GetAtt S3Bucket.Arn
